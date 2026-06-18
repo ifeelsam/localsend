@@ -57,6 +57,24 @@ class SendTab extends StatelessWidget {
               children: [
                 const SizedBox(height: 20),
                 if (vm.selectedFiles.isEmpty) ...[
+                  if (checkPlatformIsDesktop())
+                    Padding(
+                      padding: const EdgeInsets.only(left: _horizontalPadding, right: _horizontalPadding, bottom: 10),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.secondaryContainer.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.35)),
+                        ),
+                        child: Text(
+                          t.sendTab.dragShare.hint,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
                     child: Text(

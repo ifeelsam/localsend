@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:bitsdojo_window/bitsdojo_window.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
@@ -10,9 +8,11 @@ import 'package:localsend_app/pages/home_page_controller.dart';
 import 'package:localsend_app/pages/tabs/receive_tab.dart';
 import 'package:localsend_app/pages/tabs/send_tab.dart';
 import 'package:localsend_app/pages/tabs/settings_tab.dart';
-import 'package:localsend_app/provider/selection/selected_sending_files_provider.dart';
-import 'package:localsend_app/util/native/cross_file_converters.dart';
+import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
+import 'package:localsend_app/provider/network/scan_facade.dart';
+import 'package:localsend_app/util/drag_share_helper.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
+import 'package:localsend_app/widget/drag_share_overlay.dart';
 import 'package:localsend_app/widget/responsive_builder.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
@@ -56,6 +56,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with Refena {
   bool _dragAndDropIndicator = false;
+  bool _deviceDropHandled = false;
 
   @override
   void initState() {
@@ -77,6 +78,11 @@ class _HomePageState extends State<HomePage> with Refena {
         setState(() {
           _dragAndDropIndicator = true;
         });
+        final devices = ref.read(nearbyDevicesProvider).devices;
+        if (devices.isEmpty) {
+          ref.redux(nearbyDevicesProvider).dispatch(ClearFoundDevicesAction());
+          ref.global.dispatchAsync(StartSmartScan(forceLegacy: false)); // ignore: discarded_futures
+        }
       },
       onDragExited: (_) {
         setState(() {
@@ -84,20 +90,14 @@ class _HomePageState extends State<HomePage> with Refena {
         });
       },
       onDragDone: (event) async {
-        if (event.files.length == 1 && Directory(event.files.first.path).existsSync()) {
-          // user dropped a directory
-          await ref.redux(selectedSendingFilesProvider).dispatchAsync(AddDirectoryAction(event.files.first.path));
-        } else {
-          // user dropped one or more files
-          await ref
-              .redux(selectedSendingFilesProvider)
-              .dispatchAsync(
-                AddFilesAction(
-                  files: event.files,
-                  converter: CrossFileConverters.convertXFile,
-                ),
-              );
+        setState(() {
+          _dragAndDropIndicator = false;
+        });
+        if (_deviceDropHandled) {
+          _deviceDropHandled = false;
+          return;
         }
+        await stageDroppedFiles(ref, event);
         vm.changeTab(HomeTab.send);
       },
       child: ResponsiveBuilder(
@@ -163,19 +163,14 @@ class _HomePageState extends State<HomePage> with Refena {
                         ],
                       ),
                       if (_dragAndDropIndicator)
-                        Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).scaffoldBackgroundColor,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.file_download, size: 128),
-                              const SizedBox(height: 30),
-                              Text(t.sendTab.placeItems, style: Theme.of(context).textTheme.titleLarge),
-                            ],
-                          ),
+                        DragShareOverlay(
+                          onDropOnDevice: (event, device) async {
+                            _deviceDropHandled = true;
+                            setState(() {
+                              _dragAndDropIndicator = false;
+                            });
+                            await sendDroppedFilesToDevice(ref, event, device);
+                          },
                         ),
                     ],
                   ),

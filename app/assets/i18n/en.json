@@ -82,7 +82,13 @@
     },
     "sendModeHelp": "Explanation",
     "help": "Please ensure that the desired target is also on the same Wi-Fi network.",
-    "placeItems": "Place items to share."
+    "placeItems": "Place items to share.",
+    "dragShare": {
+      "title": "Drag items here to send them to your devices",
+      "myDevices": "My devices",
+      "scanning": "Searching for devices…",
+      "hint": "Drag files from Finder or your desktop onto this window to share them."
+    }
   },
   "settingsTab": {
     "title": "Settings",

@@ -254,6 +254,8 @@ class TranslationsSendTabEn {
 
   /// en: 'Place items to share.'
   String get placeItems => 'Place items to share.';
+
+  late final TranslationsSendTabDragShareEn dragShare = TranslationsSendTabDragShareEn.internal(_root);
 }
 
 // Path: settingsTab
@@ -965,6 +967,27 @@ class TranslationsSendTabSendModesEn {
 
   /// en: 'Share via link'
   String get link => 'Share via link';
+}
+
+// Path: sendTab.dragShare
+class TranslationsSendTabDragShareEn {
+  TranslationsSendTabDragShareEn.internal(this._root);
+
+  final Translations _root; // ignore: unused_field
+
+  // Translations
+
+  /// en: 'Drag items here to send them to your devices'
+  String get title => 'Drag items here to send them to your devices';
+
+  /// en: 'My devices'
+  String get myDevices => 'My devices';
+
+  /// en: 'Searching for devices…'
+  String get scanning => 'Searching for devices…';
+
+  /// en: 'Drag files from Finder or your desktop onto this window to share them.'
+  String get hint => 'Drag files from Finder or your desktop onto this window to share them.';
 }
 
 // Path: settingsTab.general
