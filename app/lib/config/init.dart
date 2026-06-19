@@ -42,6 +42,7 @@ import 'package:localsend_app/util/native/content_uri_helper.dart';
 import 'package:localsend_app/util/native/context_menu_helper.dart';
 import 'package:localsend_app/util/native/cross_file_converters.dart';
 import 'package:localsend_app/util/native/device_info_helper.dart';
+import 'package:localsend_app/util/native/macos_drag_share.dart';
 import 'package:localsend_app/util/native/macos_channel.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
 import 'package:localsend_app/util/native/tray_helper.dart';
@@ -246,7 +247,17 @@ Future<void> postInit(BuildContext context, Ref ref, bool appStart) async {
         ref.redux(homePageControllerProvider).dispatch(ChangeTabAction(HomeTab.send));
       });
 
-      await setupMethodCallHandler();
+      await setupMethodCallHandler(
+        onMenuBarDragShareDrop: (files, fingerprint) => handleMenuBarDragShareDrop(
+          ref,
+          files: files,
+          fingerprint: fingerprint,
+        ),
+        onMenuBarDragShareStarted: () => handleMenuBarDragShareStarted(ref),
+        onMenuBarDragShareEnded: () async {
+          ref.redux(dragShareOverlayProvider).dispatch(HideDragShareOverlayAction());
+        },
+      );
     } else {
       final args = ref.read(appArgumentsProvider);
       await ref.global.dispatchAsync(

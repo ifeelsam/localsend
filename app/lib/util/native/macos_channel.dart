@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:common/model/device.dart';
 import 'package:flutter/services.dart';
 import 'package:localsend_app/gen/strings.g.dart';
 import 'package:localsend_app/util/native/taskbar_helper.dart';
@@ -11,7 +12,25 @@ Future<void> setupStatusBar() async {
   await _methodChannel.invokeMethod('setupStatusBar', {
     'open': t.tray.open,
     'quit': t.tray.close,
+    'dragShareTitle': t.sendTab.dragShare.title,
+    'dragShareMyDevices': t.sendTab.dragShare.myDevices,
+    'dragShareScanning': t.sendTab.dragShare.scanning,
   });
+}
+
+Future<void> syncMenuBarDragShareDevices(Iterable<Device> devices) async {
+  await _methodChannel.invokeMethod(
+    'updateMenuBarDragShareDevices',
+    devices
+        .map(
+          (device) => {
+            'fingerprint': device.fingerprint,
+            'alias': device.alias,
+            'deviceType': device.deviceType.name,
+          },
+        )
+        .toList(),
+  );
 }
 
 Future<void> removeExistingDestinationAccess() async {
@@ -74,7 +93,11 @@ Stream<List<String>> get pendingStringsStream => _pendingStringsStreamController
 
 /// Sets up the method call handler.
 /// Any call from swift native code is dropped until this method is called.
-Future<void> setupMethodCallHandler() async {
+Future<void> setupMethodCallHandler({
+  required Future<void> Function(List<String> files, String? fingerprint) onMenuBarDragShareDrop,
+  required Future<void> Function() onMenuBarDragShareStarted,
+  required Future<void> Function() onMenuBarDragShareEnded,
+}) async {
   _methodChannel.setMethodCallHandler((call) async {
     switch (call.method) {
       case 'onPendingFiles':
@@ -85,6 +108,18 @@ Future<void> setupMethodCallHandler() async {
         break;
       case 'showLocalSendFromMenuBar':
         await showFromTray();
+        break;
+      case 'onMenuBarDragShareDrop':
+        final args = (call.arguments as Map).cast<String, dynamic>();
+        final files = (args['files'] as List?)?.cast<String>() ?? const <String>[];
+        final fingerprint = args['fingerprint'] as String?;
+        await onMenuBarDragShareDrop(files, fingerprint);
+        break;
+      case 'onMenuBarDragShareStarted':
+        await onMenuBarDragShareStarted();
+        break;
+      case 'onMenuBarDragShareEnded':
+        await onMenuBarDragShareEnded();
         break;
     }
   });

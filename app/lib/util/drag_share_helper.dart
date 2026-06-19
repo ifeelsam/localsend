@@ -9,9 +9,17 @@ import 'package:localsend_app/util/native/cross_file_converters.dart';
 import 'package:refena_flutter/refena_flutter.dart';
 
 /// Adds dropped files to the current send selection.
-Future<List<CrossFile>> stageDroppedFiles(Ref ref, DropDoneDetails event) async {
+Future<List<CrossFile>> stageDroppedFiles(
+  Ref ref,
+  DropDoneDetails event, {
+  bool replaceExisting = false,
+}) async {
   if (event.files.isEmpty) {
     return ref.read(selectedSendingFilesProvider);
+  }
+
+  if (replaceExisting) {
+    ref.redux(selectedSendingFilesProvider).dispatch(ClearSelectionAction());
   }
 
   if (event.files.length == 1 && Directory(event.files.first.path).existsSync()) {
@@ -30,7 +38,7 @@ Future<List<CrossFile>> stageDroppedFiles(Ref ref, DropDoneDetails event) async 
 
 /// Adds dropped files and immediately starts a send session to [device].
 Future<void> sendDroppedFilesToDevice(Ref ref, DropDoneDetails event, Device device) async {
-  final files = await stageDroppedFiles(ref, event);
+  final files = await stageDroppedFiles(ref, event, replaceExisting: true);
   if (files.isEmpty) {
     return;
   }

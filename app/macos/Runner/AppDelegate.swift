@@ -18,6 +18,8 @@ class AppDelegate: FlutterAppDelegate {
     private var pendingFilesObservation: Defaults.Observation?
     private var pendingStringsObservation: Defaults.Observation?
     private var isLaunchedAsLoginItem: Bool?
+    private var dragSharePanel = DragSharePanelController()
+    private var contentDropView: ContentDropView?
     
     override func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
@@ -72,6 +74,13 @@ class AppDelegate: FlutterAppDelegate {
     }
     
     private func setupStatusBarItem(i18n: [String: String]) {
+        dragSharePanel.updateStrings(DragShareStrings(
+            title: i18n["dragShareTitle"] ?? "Drag items here to send them to your devices",
+            myDevices: i18n["dragShareMyDevices"] ?? "My devices",
+            scanning: i18n["dragShareScanning"] ?? "Searching for devices…"
+        ))
+        dragSharePanel.delegate = self
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = statusItem?.button {
             let image = NSImage(named: "StatusBarItemIcon")
@@ -92,6 +101,17 @@ class AppDelegate: FlutterAppDelegate {
             statusItem?.menu = menu
             
             let dragView = ContentDropView(frame: button.bounds)
+            dragView.panelController = dragSharePanel
+            dragView.onDragSessionStarted = { [weak self] in
+                self?.channel?.invokeMethod("onMenuBarDragShareStarted", arguments: nil)
+            }
+            dragView.onDragSessionEnded = { [weak self] in
+                self?.channel?.invokeMethod("onMenuBarDragShareEnded", arguments: nil)
+            }
+            dragView.onDrop = { [weak self] sender, fingerprint in
+                self?.handleMenuBarDragShareDrop(sender, fingerprint: fingerprint)
+            }
+            contentDropView = dragView
             button.addSubview(dragView)
             
             dragView.translatesAutoresizingMaskIntoConstraints = false
@@ -191,6 +211,19 @@ class AppDelegate: FlutterAppDelegate {
         case "openFirewallSettings":
             openFirewallSettings()
             result(nil)
+        case "updateMenuBarDragShareDevices":
+            if let devices = call.arguments as? [[String: String]] {
+                let mapped = devices.compactMap { dict -> DragShareDevice? in
+                    guard let fingerprint = dict["fingerprint"],
+                          let alias = dict["alias"],
+                          let deviceType = dict["deviceType"] else {
+                        return nil
+                    }
+                    return DragShareDevice(fingerprint: fingerprint, alias: alias, deviceType: deviceType)
+                }
+                dragSharePanel.updateDevices(mapped)
+            }
+            result(nil)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -260,9 +293,25 @@ class AppDelegate: FlutterAppDelegate {
     }
     // END: handle opened files
 
+    private func handleMenuBarDragShareDrop(_ sender: NSDraggingInfo, fingerprint: String?) {
+        let filePaths = extractDroppedFilePaths(from: sender)
+        guard !filePaths.isEmpty else { return }
+
+        channel?.invokeMethod("onMenuBarDragShareDrop", arguments: [
+            "files": filePaths,
+            "fingerprint": fingerprint as Any,
+        ])
+    }
+
     /// Also handles text dropped on the Dock icon
     @objc func handleSendTextService(_ pasteboard: NSPasteboard, userData: String, error: NSErrorPointer) {
         guard let string = pasteboard.string(forType: .string) else { return }
         Defaults[.pendingStrings].append(string)
+    }
+}
+
+extension AppDelegate: DragSharePanelDelegate {
+    func dragSharePanelDidDrop(_ sender: NSDraggingInfo, fingerprint: String?) {
+        handleMenuBarDragShareDrop(sender, fingerprint: fingerprint)
     }
 }

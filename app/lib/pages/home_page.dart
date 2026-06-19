@@ -11,6 +11,7 @@ import 'package:localsend_app/pages/tabs/settings_tab.dart';
 import 'package:localsend_app/provider/network/nearby_devices_provider.dart';
 import 'package:localsend_app/provider/network/scan_facade.dart';
 import 'package:localsend_app/util/drag_share_helper.dart';
+import 'package:localsend_app/util/native/macos_drag_share.dart';
 import 'package:localsend_app/util/native/platform_check.dart';
 import 'package:localsend_app/widget/drag_share_overlay.dart';
 import 'package:localsend_app/widget/responsive_builder.dart';
@@ -72,6 +73,7 @@ class _HomePageState extends State<HomePage> with Refena {
   Widget build(BuildContext context) {
     Translations.of(context); // rebuild on locale change
     final vm = context.watch(homePageControllerProvider);
+    final menuBarDragShareOverlay = context.watch(dragShareOverlayProvider);
 
     return DropTarget(
       onDragEntered: (_) {
@@ -97,7 +99,7 @@ class _HomePageState extends State<HomePage> with Refena {
           _deviceDropHandled = false;
           return;
         }
-        await stageDroppedFiles(ref, event);
+        await stageDroppedFiles(ref, event, replaceExisting: true);
         vm.changeTab(HomeTab.send);
       },
       child: ResponsiveBuilder(
@@ -162,13 +164,14 @@ class _HomePageState extends State<HomePage> with Refena {
                           SettingsTab(),
                         ],
                       ),
-                      if (_dragAndDropIndicator)
+                      if (_dragAndDropIndicator || menuBarDragShareOverlay)
                         DragShareOverlay(
                           onDropOnDevice: (event, device) async {
                             _deviceDropHandled = true;
                             setState(() {
                               _dragAndDropIndicator = false;
                             });
+                            ref.redux(dragShareOverlayProvider).dispatch(HideDragShareOverlayAction());
                             await sendDroppedFilesToDevice(ref, event, device);
                           },
                         ),
